@@ -1,0 +1,136 @@
+{% extends "partials/header.html" %}
+
+{% block title %}Sözleşmeyi Düzenle: {{ contract.title }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+    .editor-container {
+        margin-top: 20px;
+        padding: 20px;
+        background-color: #f9f9f9;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    #contractEditEditor { /* Ensure CKEditor styles apply if not globally defined */
+        min-height: 500px; 
+    }
+    .ck-editor__editable_inline { /* General CKEditor height if not overridden */
+        min-height: 500px;
+        border: 1px solid #ccc;
+    }
+    .action-buttons {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('contract.index') }}">Sözleşme Hazırla</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('contract.view_contract', contract_id=contract.id) }}">{{ contract.title | default('Sözleşme Detayı') }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Düzenle</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% include 'partials/flash_messages.html' %}
+
+    <div class="editor-container">
+        <h3>Sözleşmeyi Düzenle: {{ contract.title }}</h3>
+        <hr>
+        <form method="POST" action="{{ url_for('contract.edit_contract', contract_id=contract.id) }}" id="editContractForm">
+            {{ form.csrf_token }} {# If using Flask-WTF for the form object #}
+            
+            <div class="mb-3">
+                <label for="editContractTitle" class="form-label">Sözleşme Başlığı</label>
+                <input type="text" class="form-control" id="editContractTitle" name="contract_title" value="{{ contract.title }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="contractEditEditorTextarea" class="form-label">Sözleşme İçeriği</label>
+                <textarea name="contract_content" id="contractEditEditorTextarea" class="form-control">
+                    {{ contract.generated_content_html | safe if contract.generated_content_html else '' }}
+                </textarea>
+            </div>
+            
+            <div class="action-buttons">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Değişiklikleri Kaydet</button>
+                <a href="{{ url_for('contract.view_contract', contract_id=contract.id) }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> İptal</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const editorTextarea = document.getElementById('contractEditEditorTextarea');
+    let ckEditorEditInstance = null;
+
+    if (editorTextarea) {
+        ClassicEditor
+            .create(editorTextarea, {
+                toolbar: {
+                    items: [
+                        'heading', '|',
+                        'fontFamily', 'fontSize', 'fontColor', 'fontBackgroundColor', '|',
+                        'bold', 'italic', 'underline', 'strikethrough', '|',
+                        'alignment', '|',
+                        'numberedList', 'bulletedList', '|',
+                        'outdent', 'indent', '|',
+                        'link', 'insertImage', 'blockQuote', 'insertTable', 'horizontalLine', '|',
+                        'undo', 'redo'
+                    ]
+                },
+                language: 'tr',
+                table: {
+                    contentToolbar: [
+                        'tableColumn', 'tableRow', 'mergeTableCells',
+                        'tableProperties', 'tableCellProperties'
+                    ]
+                }
+            })
+            .then(editor => {
+                ckEditorEditInstance = editor;
+                // console.log('CKEditor for editing initialized.');
+            })
+            .catch(error => {
+                console.error('CKEditor for editing initialization error:', error);
+                // Add a flash message or alert for the user
+                const flashContainer = document.querySelector('.container.mt-5'); // Adjust selector if needed
+                if (flashContainer) {
+                    const alertDiv = document.createElement('div');
+                    alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+                    alertDiv.setAttribute('role', 'alert');
+                    alertDiv.innerHTML = 'CKEditor yüklenirken bir hata oluştu. Sayfayı yenilemeyi deneyin. <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+                    flashContainer.insertBefore(alertDiv, flashContainer.firstChild);
+                }
+            });
+    }
+
+    // Optional: Add client-side validation or unsaved changes warning
+    const editForm = document.getElementById('editContractForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function(event) {
+            if (ckEditorEditInstance) {
+                // Update the textarea with CKEditor data before submitting
+                editorTextarea.value = ckEditorEditInstance.getData();
+            }
+            // Add any other validation if needed
+            const titleInput = document.getElementById('editContractTitle');
+            if (!titleInput.value.trim()) {
+                alert('Sözleşme başlığı boş bırakılamaz.');
+                event.preventDefault(); // Prevent form submission
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

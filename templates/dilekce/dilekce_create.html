@@ -1,0 +1,89 @@
+{% extends "partials/header.html" %}
+{# Assuming bootstrap/wtf.html is available or not strictly needed for this page's core functionality yet #}
+{# {% import "bootstrap/wtf.html" as wtf %} #}
+
+{% block title %}{{ super() if super }}Dilekçe Hazırla - {{ site_name | default("EmsalKarar GPT") }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 pt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Dilekçe Hazırlama</h2>
+                </div>
+                <div class="card-body">
+                    <p class="lead">Dilekçe hazırlamak için aşağıdaki şablonlardan birini seçin veya yapay zeka yardımcımız ile sıfırdan bir dilekçe oluşturun.</p>
+                    
+                    <form method="POST" action="{{ url_for('dilekce.create_dilekce_handler') }}" id="dilekceTypeForm">
+                        {# {{ csrf_token() }} - CSRF Token REMOVED #}
+                        
+                        <div class="mb-3">
+                            <label for="dilekce_type_select" class="form-label">Dilekçe Türü Seçin:</label>
+                            <select class="form-select" id="dilekce_type_select" name="dilekce_type">
+                                <option selected disabled value="">Lütfen bir dilekçe türü seçin...</option>
+                                <option value="bilirkisi_raporu_itiraz">Bilirkişi Raporu İtiraz</option>
+                                <option value="dava_dilekcesi">Dava Dilekçesi</option>
+                                <option value="tutanak">Tutanak</option>
+                                <option value="fesih_bildirimi">Fesih Bildirimi</option>
+                                <option value="sikayet">Şikayet</option>
+                                <option value="itiraz_genel">İtiraz (Genel)</option>
+                                <!-- Add more petition types as needed -->
+                            </select>
+                        </div>
+
+                        <hr>
+
+                        <!-- Dynamic form fields will be loaded here based on selection -->
+                        <div id="dynamic_form_fields" class="mt-4">
+                            <p class="text-muted">Lütfen yukarıdan bir dilekçe türü seçerek başlayın.</p>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-cogs me-2"></i>Dilekçe Oluştur
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dilekceTypeSelect = document.getElementById('dilekce_type_select');
+    const dynamicFormFieldsContainer = document.getElementById('dynamic_form_fields');
+
+    dilekceTypeSelect.addEventListener('change', function() {
+        const selectedType = this.value;
+        dynamicFormFieldsContainer.innerHTML = ''; // Clear previous fields
+
+        if (selectedType) {
+            dynamicFormFieldsContainer.innerHTML = '<div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Yükleniyor...</span></div> <em class="text-muted ms-2">Alanlar yükleniyor...</em>';
+            
+            fetch(`/dilekce/get-form-fields/${selectedType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.html) {
+                        dynamicFormFieldsContainer.innerHTML = data.html;
+                    } else {
+                        dynamicFormFieldsContainer.innerHTML = '<p class="text-danger">Bu dilekçe türü için form alanları yüklenemedi.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching form fields:', error);
+                    dynamicFormFieldsContainer.innerHTML = '<p class="text-danger">Form alanları yüklenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.</p>';
+                });
+        } else {
+            dynamicFormFieldsContainer.innerHTML = '<p class="text-muted">Lütfen yukarıdan bir dilekçe türü seçerek başlayın.</p>';
+        }
+    });
+});
+</script>
+{% endblock %}

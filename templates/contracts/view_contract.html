@@ -1,0 +1,79 @@
+{% extends "partials/header.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+    .contract-view-container {
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    .contract-content {
+        border: 1px solid #e0e0e0;
+        padding: 15px;
+        min-height: 300px;
+        background-color: #fdfdfd;
+        border-radius: 5px;
+        overflow-x: auto; /* For very wide content if any */
+    }
+    .action-buttons a, .action-buttons button {
+        margin-right: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('contract.index') }}">Sözleşme Hazırla</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ contract.title | default('Sözleşme Detayı') }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% include 'partials/flash_messages.html' %}
+
+    <div class="contract-view-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>{{ contract.title | default('Sözleşme Detayı') }}</h3>
+            <div class="action-buttons">
+                <a href="{{ url_for('contract.edit_contract', contract_id=contract.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil-square"></i> Düzenle</a>
+                <a href="{{ url_for('contract.export_pdf', contract_id=contract.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-pdf"></i> PDF İndir</a>
+                <a href="{{ url_for('contract.export_docx', contract_id=contract.id) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-word"></i> Word İndir</a>
+                <button onclick="window.print();" class="btn btn-sm btn-outline-info"><i class="bi bi-printer"></i> Yazdır</button>
+            </div>
+        </div>
+        <hr>
+        <p><strong>Sözleşme Türü:</strong> {{ CONTRACT_TYPES_DATA.get(contract.contract_type, {}).get('name', contract.contract_type) }}</p>
+        <p><strong>Oluşturulma Tarihi:</strong> {{ contract.created_at.strftime('%d-%m-%Y %H:%M') }}</p>
+        {% if contract.updated_at and contract.updated_at != contract.created_at %}
+        <p><strong>Son Güncelleme:</strong> {{ contract.updated_at.strftime('%d-%m-%Y %H:%M') }}</p>
+        {% endif %}
+        
+        <h5 class="mt-4">Sözleşme İçeriği:</h5>
+        <div class="contract-content">
+            {% if contract.generated_content_html %}
+                {{ contract.generated_content_html | safe }}
+            {% else %}
+                <p class="text-muted">Bu sözleşme için içerik bulunamadı.</p>
+            {% endif %}
+        </div>
+
+        <div class="mt-4">
+            <a href="{{ url_for('contract.index') }}" class="btn btn-secondary"><i class="bi bi-arrow-left"></i> Geri Dön</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Add any specific JS for this page if needed -->
+{% endblock %}

@@ -1,0 +1,448 @@
+{% extends "partials/header.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+<style>
+    .contract-category {
+        margin-bottom: 2rem;
+    }
+    .contract-type-card {
+        cursor: pointer;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .contract-type-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    /* Ensure modal is on top of other elements like a potentially high z-index navbar */
+    #contractFormModal.modal, #generatedContractViewModal.modal { /* Targeting modals by ID for z-index */
+        z-index: 1060; 
+    }
+
+    .modal-dialog.modal-lg {
+        max-width: 95%; 
+        margin: 5.75rem auto; /* do not change this margin */
+    }
+    
+    .modal-dialog.modal-xl { /* For the generated contract view modal */
+        max-width: 95%;
+        margin: 5.75rem auto; /* do not change this margin */
+    }
+
+    @media (min-width: 992px) { /* For large screens (lg) and up */
+        .modal-dialog.modal-lg { /* For the form modal */
+            max-width: 1140px; 
+        }
+        .modal-dialog.modal-xl { /* For the generated contract view modal */
+            max-width: 1140px; /* Can be adjusted if a wider view is needed */
+        }
+    }
+
+    .modal-dialog-scrollable .modal-content {
+        max-height: calc(100vh - 3.5rem); 
+        overflow: hidden; 
+    }
+
+    .modal-dialog-scrollable .modal-body {
+        overflow-y: auto; 
+    }
+
+    #modalFormFields {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+        gap: 1rem; 
+    }
+
+    /* CKEditor specific styling if needed */
+    #generatedContractViewModal .ck-editor__editable_inline {
+        min-height: 450px; /* Adjust height for the editor in the modal */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div id="flash-messages-container">
+      {% include 'partials/flash_messages.html' %}
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>{{ title | default('Sözleşme Hazırla') }}</h2>
+            <p>Lütfen hazırlamak istediğiniz sözleşme türünü seçin. Seçiminize göre gerekli alanları doldurarak yapay zeka yardımıyla sözleşmenizi oluşturabilirsiniz.</p>
+        </div>
+    </div>
+
+    <!-- Contract Type Selection Area -->
+    <div class="row">
+        <div class="col-lg-8">
+            <h4>Sözleşme Türleri</h4>
+            {% if categorized_contracts %}
+                {% for category, contracts_in_category in categorized_contracts.items() %}
+                <div class="contract-category">
+                    <h5>{{ category }}</h5>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                        {% for contract_item in contracts_in_category %}
+                        <div class="col">
+                            <div class="card h-100 contract-type-card" data-bs-toggle="modal" data-bs-target="#contractFormModal" data-contract-type="{{ contract_item.key }}" data-contract-name="{{ contract_item.name }}">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-file-earmark-text fs-2 mb-2"></i>
+                                    <h6 class="card-title">{{ contract_item.name }}</h6>
+                                    {% if contract_item.description %}
+                                    <p class="card-text small text-muted">{{ contract_item.description }}</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-danger">Uygun sözleşme türü bulunamadı veya yüklenirken bir sorun oluştu.</p>
+            {% endif %}
+            <!-- Placeholder for where the old editor output was, now handled by modal -->
+            <div id="generatedContractPlaceholder" class="my-4"></div>
+        </div>
+
+        <!-- Existing User Contracts -->
+        <div class="col-lg-4">
+            <h4>Kaydedilmiş Sözleşmelerim</h4>
+            {% if user_contracts %}
+            <div class="list-group">
+                {% for contract in user_contracts %}
+                <a href="{{ url_for('contract.view_contract', contract_id=contract.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">{{ contract.title | default(contract.contract_type | replace('_', ' ') | title) }}</h6>
+                        <small class="text-muted">Oluşturulma: {{ contract.created_at.strftime('%d-%m-%Y %H:%M') }}</small><br>
+                        <small class="text-muted">Tür: {{ CONTRACT_TYPES_DATA.get(contract.contract_type, {}).get('name', contract.contract_type) }}</small>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('contract.edit_contract', contract_id=contract.id) }}" class="btn btn-sm btn-outline-primary me-1"><i class="bi bi-pencil-square"></i></a>
+                        <form action="{{ url_for('contract.delete_contract', contract_id=contract.id) }}" method="POST" onsubmit="return confirm('Bu sözleşmeyi silmek istediğinizden emin misiniz?');" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">Henüz kaydedilmiş bir sözleşmeniz bulunmamaktadır.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Contract Form Modal (for inputting details) -->
+    <div class="modal fade" id="contractFormModal" tabindex="-1" aria-labelledby="contractFormModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contractFormModalLabel">Sözleşme Detayları</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="dynamicContractForm">
+                        <input type="hidden" id="modalContractTypeKey" name="contract_type_key">
+                        <div id="modalFormFields" class="mb-3">
+                            <!-- Dynamic fields will be loaded here by JavaScript -->
+                        </div>
+                        <div class="mb-3">
+                            <label for="contractTitle" class="form-label">Sözleşme Başlığı (Opsiyonel)</label>
+                            <input type="text" class="form-control" id="contractTitle" name="contract_title" placeholder="Örn: Aylık Bakım Sözleşmesi">
+                        </div>
+                        <div class="mb-3">
+                             <label for="customPrompt" class="form-label">Ek Notlar / Özel İstekler (Opsiyonel)</label>
+                             <textarea class="form-control" id="customPrompt" name="custom_prompt" rows="3" placeholder="Sözleşmeye eklenmesini istediğiniz özel maddeler veya notlar..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                    <button type="button" class="btn btn-primary" id="generateContractBtn">Sözleşme Oluştur</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generated Contract View/Edit Modal -->
+    <div class="modal fade" id="generatedContractViewModal" tabindex="-1" aria-labelledby="generatedContractViewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="generatedContractViewModalLabel">Oluşturulan Sözleşme</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- CKEditor will be initialized on this textarea -->
+                    <textarea name="generatedContractEditor" id="generatedContractEditor"></textarea>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2" id="updateContractBtn" style="display: none;"><i class="bi bi-save"></i> Değişiklikleri Kaydet</button>
+                        <button class="btn btn-sm btn-success me-2" id="saveToProfileModalBtn"><i class="bi bi-check-circle"></i> Profile Kaydedildi</button>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2" id="exportPdfModalBtn"><i class="bi bi-file-earmark-pdf"></i> PDF İndir</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="exportDocxModalBtn"><i class="bi bi-file-earmark-word"></i> Word İndir</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Kapat</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const contractFormModalEl = document.getElementById('contractFormModal');
+    const contractFormModal = new bootstrap.Modal(contractFormModalEl);
+    const modalFormFields = document.getElementById('modalFormFields');
+    const modalContractTypeKeyInput = document.getElementById('modalContractTypeKey');
+    const modalTitleElement = document.getElementById('contractFormModalLabel');
+    const generateContractBtn = document.getElementById('generateContractBtn');
+    
+    const generatedContractViewModalEl = document.getElementById('generatedContractViewModal');
+    const generatedContractViewModal = new bootstrap.Modal(generatedContractViewModalEl);
+    const generatedContractEditorEl = document.getElementById('generatedContractEditor');
+    const generatedContractViewModalLabel = document.getElementById('generatedContractViewModalLabel');
+
+    const exportPdfModalBtn = document.getElementById('exportPdfModalBtn');
+    const exportDocxModalBtn = document.getElementById('exportDocxModalBtn');
+    const saveToProfileModalBtn = document.getElementById('saveToProfileModalBtn'); // Button in the new modal
+    // const updateContractBtn = document.getElementById('updateContractBtn'); // For future use
+
+    let ckEditorInstance = null;
+    let currentGeneratedContractId = null;
+    let currentContractTitle = '';
+
+    // Initialize CKEditor
+    ClassicEditor
+        .create(generatedContractEditorEl, {
+            toolbar: {
+                items: [
+                    'heading', '|',
+                    'fontFamily', 'fontSize', 'fontColor', 'fontBackgroundColor', '|',
+                    'bold', 'italic', 'underline', 'strikethrough', '|',
+                    'alignment', '|',
+                    'numberedList', 'bulletedList', '|',
+                    'outdent', 'indent', '|',
+                    'link', 'insertImage', 'blockQuote', 'insertTable', 'horizontalLine', '|',
+                    'undo', 'redo'
+                ]
+            },
+            language: 'tr', // Optional: set language if Turkish localization is available and desired
+            table: {
+                contentToolbar: [
+                    'tableColumn', 'tableRow', 'mergeTableCells',
+                    'tableProperties', 'tableCellProperties'
+                ]
+            },
+            // Cloud Services configuration (if using features like Easy Image or Real-time Collaboration)
+            // cloudServices: {
+            //     tokenUrl: 'YOUR_TOKEN_URL', // Example, not used for basic setup
+            //     uploadUrl: 'YOUR_UPLOAD_URL' // Example, not used for basic setup
+            // }
+        })
+        .then(editor => {
+            ckEditorInstance = editor;
+        })
+        .catch(error => {
+            console.error('CKEditor initialization error:', error);
+            addFlashMessage('CKEditor yüklenirken bir hata oluştu. Sayfayı yenilemeyi deneyin.', 'danger');
+        });
+
+    document.querySelectorAll('.contract-type-card').forEach(card => {
+        card.addEventListener('click', function () {
+            const contractTypeKey = this.dataset.contractType;
+            const contractName = this.dataset.contractName;
+            modalContractTypeKeyInput.value = contractTypeKey;
+            modalTitleElement.textContent = `${contractName} Detayları`;
+            document.getElementById('contractTitle').value = ''; // Clear previous title
+            document.getElementById('customPrompt').value = ''; // Clear previous custom prompt
+            
+            fetch(`/contract/get_contract_form/${contractTypeKey}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        addFlashMessage(data.error, 'danger');
+                        return;
+                    }
+                    modalFormFields.innerHTML = ''; 
+                    data.fields.forEach(field => {
+                        const formGroup = document.createElement('div');
+                        formGroup.classList.add('mb-3');
+                        
+                        const label = document.createElement('label');
+                        label.setAttribute('for', `field-${field.name}`);
+                        label.classList.add('form-label');
+                        label.textContent = field.label + (field.required ? ' *' : '');
+                        formGroup.appendChild(label);
+
+                        let input;
+                        if (field.type === 'textarea') {
+                            input = document.createElement('textarea');
+                            input.rows = field.rows || 3;
+                        } else {
+                            input = document.createElement('input');
+                            input.type = field.type;
+                        }
+                        input.id = `field-${field.name}`;
+                        input.name = field.name;
+                        input.classList.add('form-control');
+                        if (field.required) input.required = true;
+                        if (field.placeholder) input.placeholder = field.placeholder;
+                        
+                        formGroup.appendChild(input);
+                        modalFormFields.appendChild(formGroup);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching contract form:', error);
+                    addFlashMessage('Sözleşme formu yüklenirken bir hata oluştu.', 'danger');
+                });
+        });
+    });
+
+    generateContractBtn.addEventListener('click', function() {
+        const form = document.getElementById('dynamicContractForm');
+        const formData = new FormData(form);
+        const formInputs = {};
+        formData.forEach((value, key) => {
+            if (key !== 'contract_type_key' && key !== 'contract_title' && key !== 'custom_prompt') {
+                formInputs[key] = value;
+            }
+        });
+
+        const contractType = modalContractTypeKeyInput.value;
+        currentContractTitle = document.getElementById('contractTitle').value || CONTRACT_TYPES_DATA[contractType]?.name || 'Sözleşme';
+        const customPrompt = document.getElementById('customPrompt').value; 
+
+        if (!contractType) {
+            addFlashMessage('Lütfen bir sözleşme türü seçin.', 'warning');
+            return;
+        }
+        
+        // Basic client-side validation for required fields
+        let formIsValid = true;
+        const requiredFields = CONTRACT_TYPES_DATA[contractType]?.fields.filter(f => f.required);
+        if (requiredFields) {
+            for (const field of requiredFields) {
+                if (!formInputs[field.name]) {
+                    addFlashMessage(`${field.label} alanı zorunludur.`, 'warning');
+                    formIsValid = false;
+                    break;
+                }
+            }
+        }
+        if (!formIsValid) return;
+        
+        generateContractBtn.disabled = true;
+        generateContractBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Oluşturuluyor...';
+
+        fetch('/contract/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contract_type: contractType,
+                form_inputs: formInputs,
+                title: currentContractTitle, 
+                custom_prompt: customPrompt 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                addFlashMessage(`Hata: ${data.error}`, 'danger');
+            } else {
+                currentGeneratedContractId = data.contract_id;
+                if (ckEditorInstance) {
+                    ckEditorInstance.setData(data.contract_html || '');
+                } else {
+                    generatedContractEditorEl.value = data.contract_html || ''; // Fallback if CKEditor fails
+                }
+                generatedContractViewModalLabel.textContent = currentContractTitle || 'Oluşturulan Sözleşme';
+                
+                addFlashMessage(data.message || 'Sözleşme başarıyla oluşturuldu ve profilinize kaydedildi!', 'success'); 
+                contractFormModal.hide();
+                generatedContractViewModal.show();
+                // Optionally, refresh the "Kaydedilmiş Sözleşmelerim" list dynamically
+                // For now, a page reload after closing the modal would show the new contract.
+                // Or, we can add a small delay and then reload:
+                // setTimeout(() => window.location.reload(), 2000);
+            }
+        })
+        .catch(error => {
+            console.error('Error generating contract:', error);
+            addFlashMessage('Sözleşme oluşturulurken bir ağ hatası oluştu.', 'danger');
+        })
+        .finally(() => {
+            generateContractBtn.disabled = false;
+            generateContractBtn.innerHTML = 'Sözleşme Oluştur';
+        });
+    });
+
+    exportPdfModalBtn.addEventListener('click', function() {
+        if (currentGeneratedContractId) {
+            window.location.href = `/contract/export/pdf/${currentGeneratedContractId}`;
+        } else {
+            addFlashMessage('PDF oluşturmak için önce bir sözleşme oluşturulmalı veya seçilmelidir.', 'warning');
+        }
+    });
+
+    exportDocxModalBtn.addEventListener('click', function() {
+        if (currentGeneratedContractId) {
+            window.location.href = `/contract/export/docx/${currentGeneratedContractId}`;
+        } else {
+            addFlashMessage('Word belgesi oluşturmak için önce bir sözleşme oluşturulmalı veya seçilmelidir.', 'warning');
+        }
+    });
+
+    saveToProfileModalBtn.addEventListener('click', function() {
+        // The contract is already saved when generated. This button can act as a confirmation
+        // or in the future, trigger an update if CKEditor content has changed.
+        if (currentGeneratedContractId) {
+            addFlashMessage(`'${currentContractTitle}' başlıklı sözleşme profilinize kaydedilmiştir.`, 'info');
+            // Potentially add logic here to update the contract if ckEditorInstance.getData() has changed
+            // and an update button was clicked.
+        } else {
+            addFlashMessage('Kaydedilecek bir sözleşme bulunmuyor.', 'warning');
+        }
+    });
+    
+    // Refresh list on modal close (simple way to update "My Saved Contracts")
+    generatedContractViewModalEl.addEventListener('hidden.bs.modal', function () {
+        // Consider if a full reload is always desired or if dynamic update is better
+        // For now, let's not auto-reload to prevent losing unsaved form states if user reopens form modal.
+        // User can manually refresh or we can implement dynamic list update later.
+        // window.location.reload(); 
+    });
+
+
+    function addFlashMessage(message, category) {
+        const flashContainer = document.getElementById('flash-messages-container');
+        if (flashContainer) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${category} alert-dismissible fade show mt-3`;
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.innerHTML = `${message} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+            
+            // Remove any existing flash messages before adding a new one to prevent clutter
+            while (flashContainer.firstChild) {
+                flashContainer.removeChild(flashContainer.firstChild);
+            }
+            flashContainer.appendChild(alertDiv);
+        }
+    }
+
+    // Make CONTRACT_TYPES_DATA available to JS if it's not already
+    // This is needed for client-side validation and getting default titles
+    // It's already passed to the template, so we can parse it if needed, or better, embed as JS object
+    const CONTRACT_TYPES_DATA = JSON.parse('{{ CONTRACT_TYPES_DATA | tojson | safe }}');
+
+});
+</script>
+{% endblock %}

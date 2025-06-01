@@ -1,0 +1,82 @@
+{% macro render_field(field_value, name, label, type='text', placeholder='', required=False, value=None, help_text=None, readonly=False, class_extra='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">{{ label }}{% if required %}<span class="text-danger">*</span>{% endif %}</label>
+    <input type="{{ type }}" 
+           class="form-control {{ class_extra }}" 
+           id="{{ name }}" 
+           name="{{ name }}" 
+           placeholder="{{ placeholder }}" 
+           {% if value is not none %}value="{{ value }}"{% elif field_value is not none %}value="{{ field_value }}"{% endif %}
+           {% if required %}required{% endif %}
+           {% if readonly %}readonly{% endif %}>
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_textarea_field(field_value, name, label, placeholder='', required=False, value=None, rows=3, help_text=None, class_extra='') %}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">{{ label }}{% if required %}<span class="text-danger">*</span>{% endif %}</label>
+    <textarea class="form-control {{ class_extra }}" 
+              id="{{ name }}" 
+              name="{{ name }}" 
+              rows="{{ rows }}" 
+              placeholder="{{ placeholder }}"
+              {% if required %}required{% endif %}>{% if value is not none %}{{ value }}{% elif field_value is not none %}{{ field_value }}{% endif %}</textarea>
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro render_submit_button(text, id=None, class='btn btn-primary', icon_class=None) %}
+<button type="submit" 
+        class="{{ class }}"
+        {% if id %}id="{{ id }}"{% endif %}>
+    {% if icon_class %}<i class="{{ icon_class }} me-2"></i>{% endif %}
+    {{ text|safe }}
+</button>
+{% endmacro %}
+
+{% macro render_datepicker_field(field_value, name, label, placeholder='GG.AA.YYYY', required=False, value=None, help_text=None, class_extra='') %}
+{# This is a basic date field. For a proper datepicker, you'd integrate a JS library. #}
+{# For now, using type="date" which has browser-native support, though format might vary. #}
+{# Or, use type="text" and rely on a JS library to enhance it. #}
+<div class="mb-3">
+    <label for="{{ name }}" class="form-label">{{ label }}{% if required %}<span class="text-danger">*</span>{% endif %}</label>
+    <input type="text" 
+           class="form-control datepicker {{ class_extra }}" {# Add 'datepicker' class for JS targeting #}
+           id="{{ name }}" 
+           name="{{ name }}" 
+           placeholder="{{ placeholder }}" 
+           {% if value is not none %}value="{{ value }}"{% elif field_value is not none %}value="{{ field_value }}"{% endif %}
+           {% if required %}required{% endif %}>
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+    {# Reminder for JS initialization:
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize your datepicker here, e.g., using Flatpickr or bootstrap-datepicker
+        // flatpickr(".datepicker", { dateFormat: "d.m.Y" });
+        // $('.datepicker').datepicker({ format: 'dd.mm.yyyy', autoclose: true, todayHighlight: true });
+    });
+    </script>
+    #}
+</div>
+{% endmacro %}
+
+
+{% macro card_link_large_icon(url, icon_class, title, text, button_text='Detaylar') %}
+<div class="card h-100 shadow-sm feature-card">
+    <div class="card-body text-center d-flex flex-column">
+        <div class="feature-icon-container mb-3">
+            <i class="{{ icon_class }} fa-3x text-primary"></i>
+        </div>
+        <h5 class="card-title">{{ title }}</h5>
+        <p class="card-text flex-grow-1">{{ text }}</p>
+        <a href="{{ url }}" class="btn btn-primary mt-auto stretched-link">{{ button_text }}</a>
+    </div>
+</div>
+{% endmacro %}

@@ -1,0 +1,182 @@
+{% extends "partials/header.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .ifade-content-display {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 20px;
+        border-radius: .25rem;
+        /* min-height: 300px; */ /* Removed to let content define height */
+        overflow-x: auto; /* Handle very wide content if any */
+        word-wrap: break-word; /* Ensure long words break */
+    }
+    .metadata-section dl {
+        margin-bottom: 0;
+    }
+    .metadata-section dt {
+        font-weight: bold;
+        width: 150px; /* Adjust as needed */
+    }
+    .metadata-section dd {
+        margin-left: 160px; /* Should be > dt width */
+    }
+    .btn-download-group {
+        display: flex;
+        gap: 10px; /* Space between buttons */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="display-6">{{ title }}</h1>
+                    <p class="lead">Oluşturulmuş ifade detayları.</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('ifade.ifade_hub') }}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-chevron-left me-2"></i>İfade Merkezine Dön
+                    </a>
+                    <!-- TODO: Add Edit button if edit functionality is desired from view page -->
+                    {# <a href="{{ url_for('ifade.edit_ifade', ifade_id=ifade.id) }}" class="btn btn-primary"> #}
+                    {#     <i class="fas fa-edit me-2"></i>Düzenle #}
+                    {# </a> #}
+                </div>
+            </div>
+
+            {% include 'partials/flash_messages.html' %}
+
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">İfade Detayları: {{ ifade.title }}</h5>
+                    <div class="btn-download-group">
+                        <button id="downloadPdfBtn" class="btn btn-sm btn-danger">
+                            <i class="fas fa-file-pdf me-1"></i>PDF İndir
+                        </button>
+                        <button id="downloadDocxBtn" class="btn btn-sm btn-info">
+                            <i class="fas fa-file-word me-1"></i>Word İndir
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="metadata-section mb-4">
+                        <dl class="row">
+                            <dt class="col-sm-3">İfade Türü:</dt>
+                            <dd class="col-sm-9">{{ ifade_type_name }}</dd>
+
+                            <dt class="col-sm-3">Oluşturulma Tarihi:</dt>
+                            <dd class="col-sm-9">{{ ifade.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</dd>
+
+                            <dt class="col-sm-3">Son Güncelleme:</dt>
+                            <dd class="col-sm-9">{{ ifade.updated_at.strftime('%d.%m.%Y %H:%M:%S') }}</dd>
+                        </dl>
+                        <hr>
+                        <h6>Giriş Verileri:</h6>
+                        <pre class="bg-light p-2 border rounded-1 small"><code>{{ ifade.input_data | tojson(indent=2) }}</code></pre>
+                        <hr>
+                    </div>
+                    
+                    <h5>Oluşturulan İfade Metni:</h5>
+                    <div id="ifadeContentDisplay" class="ifade-content-display">
+                        {{ ifade.generated_content_html | safe }}
+                    </div>
+
+                    <div class="alert alert-warning mt-4" role="alert">
+                        <strong>Feragatname:</strong> İşbu ifade taslağı yapay zeka tarafından oluşturulmuştur ve yalnızca bir örnek teşkil eder. Hukuki geçerliliği, doğruluğu ve özel durumunuza uygunluğu için mutlaka bir hukuk danışmanına başvurunuz ve resmi mercilerce usulüne uygun şekilde kayıt altına alınmasını sağlayınız. Oluşturulan metin üzerinde değişiklik yapabilir ve ihtiyaçlarınıza göre uyarlayabilirsiniz.
+                    </div>
+
+                    <div class="mt-4 text-end">
+                        <form action="{{ url_for('ifade.delete_ifade', ifade_id=ifade.id) }}" method="POST" onsubmit="return confirm('Bu ifadeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.');" style="display: inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() if csrf_token else '' }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-2"></i>İfadeyi Sil
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- Include html2pdf.js for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const currentIfadeContentHtml = {{ ifade.generated_content_html|tojson|safe }};
+    const currentJsIfadeTitle = {{ ifade.title|tojson|safe }};
+    const currentJsIfadeTypeName = {{ ifade_type_name|tojson|safe }};
+    const currentJsCreationDate = {{ ifade.created_at.strftime('%Y%m%d')|tojson|safe }};
+    
+    const baseFilenameForDownloads = currentJsIfadeTitle || currentJsIfadeTypeName || "ifade";
+
+    // PDF Download
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', function () {
+            const rawPdfFilename = `${baseFilenameForDownloads}_${currentJsCreationDate}.pdf`;
+            const pdfFilename = rawPdfFilename.replace(/[^a-zA-Z0-9_.\-\s]/g, '_').replace(/\s+/g, '_');
+            
+            var opt = {
+                margin:       1, // inches
+                filename:     pdfFilename,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, logging: true, dpi: 192, letterRendering: true, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+            };
+            
+            const contentForPdf = document.createElement('div');
+            contentForPdf.innerHTML = currentIfadeContentHtml;
+
+            html2pdf().from(contentForPdf).set(opt).save();
+        });
+    }
+
+    // DOCX Download
+    const downloadDocxBtn = document.getElementById('downloadDocxBtn');
+    if (downloadDocxBtn) {
+        downloadDocxBtn.addEventListener('click', function () {
+            const rawDocxFilename = `${baseFilenameForDownloads}_${currentJsCreationDate}.docx`;
+            const docxFilename = rawDocxFilename.replace(/[^a-zA-Z0-9_.\-\s]/g, '_').replace(/\s+/g, '_');
+            
+            const MHTMLContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { font-family: Calibri, sans-serif; font-size: 11pt; }
+                        h1 { font-size: 16pt; }
+                        h2 { font-size: 14pt; }
+                        p { margin-bottom: 10pt; }
+                        /* Add other styles from your editor or generated content if possible */
+                    </style>
+                </head>
+                <body>
+                    ${currentIfadeContentHtml}
+                </body>
+                </html>`;
+
+            const blob = new Blob([MHTMLContent], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = docxFilename; 
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        });
+    }
+});
+</script>
+{% endblock %}

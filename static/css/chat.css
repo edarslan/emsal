@@ -1,0 +1,123 @@
+/* chat.css - Light & Modern Theme */
+
+.chat-window {
+    max-height: 70vh; /* Adjust as needed */
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg); /* Consistent with main.css cards */
+    overflow: hidden;
+    background-color: var(--bg-main); /* Uses variable from main.css */
+    box-shadow: var(--shadow-md); /* Uses variable from main.css */
+}
+
+.chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 20px; /* Increased padding */
+    background-color: var(--bg-content-alt); /* Slightly different from main content bg for distinction */
+}
+
+.message {
+    display: flex;
+    margin-bottom: 18px; /* Increased margin */
+}
+
+.message-bubble {
+    max-width: 80%; /* Slightly increased max-width */
+    padding: 12px 18px; /* Increased padding */
+    border-radius: var(--border-radius-lg); /* Consistent rounded corners */
+    word-wrap: break-word;
+    box-shadow: var(--shadow-xs); /* Subtle shadow for depth */
+    line-height: 1.5; /* Improved readability */
+    font-size: 0.9rem;
+}
+
+.user-message {
+    justify-content: flex-end;
+}
+
+.user-message .message-bubble {
+    background-color: var(--primary-accent); /* Uses variable from main.css */
+    color: var(--text-on-primary-accent); /* Uses variable from main.css */
+    border-top-right-radius: var(--border-radius-sm); /* Slightly different radius for bubble tail */
+    margin-left: auto;
+}
+
+.ai-message {
+    justify-content: flex-start;
+}
+
+.ai-message .message-bubble {
+    background-color: var(--neutral-lighter); /* Uses variable from main.css - a light grey */
+    color: var(--text-primary); /* Uses variable from main.css */
+    border-top-left-radius: var(--border-radius-sm); /* Slightly different radius for bubble tail */
+    margin-right: auto;
+}
+
+.message-time {
+    font-size: 0.7rem; /* Slightly smaller */
+    display: block;
+    margin-top: 8px; /* Increased margin */
+    text-align: right;
+}
+
+.user-message .message-time {
+    color: rgba(255, 255, 255, 0.65); /* Adjusted for better contrast on blue */
+}
+
+.ai-message .message-time {
+    color: var(--neutral-medium); /* Uses variable from main.css */
+    text-align: left; /* Align time to left for AI messages */
+    padding-left: 5px; /* Add some padding if time is outside bubble or aligned left */
+}
+
+
+.chat-input-area {
+    padding: 15px 20px; /* Increased padding */
+    background-color: var(--bg-content); /* Uses variable from main.css */
+    border-top: 1px solid var(--border-color); /* Uses variable from main.css */
+    display: flex; /* For aligning input and button */
+    align-items: center; /* Vertically align items */
+}
+
+.chat-input-area .form-control {
+    resize: none;
+    border-radius: var(--border-radius-md); /* Consistent border radius */
+    border: 1px solid var(--border-color-strong); /* Stronger border for input */
+    padding: 0.75rem 1rem; /* Adjusted padding */
+    font-size: 0.9rem;
+    flex-grow: 1; /* Allow input to take available space */
+    margin-right: 10px; /* Space between input and button */
+}
+
+.chat-input-area .form-control:focus {
+    border-color: var(--primary-accent);
+    box-shadow: var(--shadow-focus); /* Consistent focus shadow */
+}
+
+.chat-input-area .btn {
+    min-height: calc(1.5em + (0.75rem * 2) + 2px); /* Match form-control height, adjust based on padding */
+    padding: 0.75rem 1.25rem; /* Ensure button is well-sized */
+    font-size: 0.9rem;
+    /* Uses .btn styles from main.css by default */
+}
+
+/* Scrollbar styling (optional, for better aesthetics) */
+.chat-messages::-webkit-scrollbar {
+    width: 6px; /* Thinner scrollbar */
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: var(--neutral-lighter); /* Uses variable from main.css */
+    border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background: var(--neutral-medium); /* Uses variable from main.css */
+    border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--neutral-dark); /* Uses variable from main.css */
+}

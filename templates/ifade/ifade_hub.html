@@ -1,0 +1,62 @@
+{% extends "partials/header.html" %}
+{% from "partials/macros.html" import render_field, render_submit_button, card_link_large_icon %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="display-5">{{ title }}</h1>
+            <p class="lead">İfade hazırlamak için aşağıdaki seçeneklerden birini seçin. Yapay zeka asistanımız size uygun bir ifade taslağı oluşturacaktır.</p>
+        </div>
+    </div>
+
+    {% include 'partials/flash_messages.html' %}
+
+    <div class="row g-4">
+        {% for type_key, type_details in ifade_types.items() %}
+        <div class="col-md-6 col-lg-4">
+            {{ card_link_large_icon(
+                url=url_for('ifade.create_ifade', ifade_type_key=type_key),
+                icon_class=type_details.icon,
+                title=type_details.name,
+                text=type_details.description,
+                button_text='İfade Oluşturmaya Başla'
+            ) }}
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if user_ifadeler %}
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h2 class="mb-3">Daha Önce Oluşturduğunuz İfadeler</h2>
+            <div class="list-group">
+                {% for ifade_item in user_ifadeler %}
+                <a href="{{ url_for('ifade.view_ifade', ifade_id=ifade_item.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">{{ ifade_item.title or (ifade_types[ifade_item.ifade_type].name if ifade_item.ifade_type in ifade_types else "Bilinmeyen İfade Türü") }}</h5>
+                        <small class="text-muted">Oluşturulma: {{ ifade_item.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                        {% if ifade_item.updated_at != ifade_item.created_at %}
+                            <small class="text-muted ms-2">Güncellenme: {{ ifade_item.updated_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                        {% endif %}
+                    </div>
+                    <span class="badge bg-primary rounded-pill">Görüntüle</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <div class="alert alert-info" role="alert">
+                Henüz oluşturulmuş bir ifadeniz bulunmamaktadır. Yukarıdaki seçeneklerden birini kullanarak yeni bir ifade oluşturabilirsiniz.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

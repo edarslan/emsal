@@ -1,0 +1,74 @@
+{% extends "partials/header.html" %}
+
+{% block title %}{{ super() if super }}{{ dilekce.title if dilekce else "Dilekçe Görüntüle" }} - {{ site_name | default("EmsalKarar GPT") }}{% endblock %}
+
+{% block content %} {# Changed from page_content to content to match partials/header.html structure #}
+<div class="container mt-5 pt-5">
+    {% if dilekce %}
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h2 class="display-6">{{ dilekce.title }}</h2>
+            <p class="text-muted">Oluşturulma Tarihi: {{ dilekce.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+            <p class="text-muted">Dilekçe Türü: {{ dilekce.dilekce_type.replace('_', ' ').title() }}</p>
+        </div>
+        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+            <a href="#" class="btn btn-outline-secondary btn-sm me-2 disabled" title="Yakında"><i class="fas fa-edit me-1"></i> Düzenle</a>
+            <a href="#" class="btn btn-outline-danger btn-sm me-2 disabled" title="Yakında"><i class="fas fa-file-pdf me-1"></i> PDF İndir</a>
+            <a href="#" class="btn btn-outline-primary btn-sm disabled" title="Yakında"><i class="fas fa-file-word me-1"></i> Word İndir</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            Dilekçe İçeriği
+        </div>
+        <div class="card-body">
+            {# This will render the HTML content of the petition. 
+               Ensure it's properly sanitized if it comes from user input or AI without strict control.
+               For AI-generated content that you trust to be safe HTML, 'safe' filter is okay.
+            #}
+            <div id="dilekceEditor">
+                 {{ dilekce.generated_content_html | safe }}
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="{{ url_for('dilekce.create_dilekce_form') }}" class="btn btn-secondary">
+            <i class="fas fa-plus me-2"></i>Yeni Dilekçe Oluştur
+        </a>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-tachometer-alt me-2"></i>Panele Dön
+        </a>
+        {# Add a link to a page listing all dilekçeler if you create one #}
+        {# <a href="{{ url_for('dilekce.dilekce_list') }}" class="btn btn-info">Tüm Dilekçelerim</a> #}
+    </div>
+
+    {% else %}
+    <div class="alert alert-warning" role="alert">
+        Dilekçe bulunamadı veya bu dilekçeyi görüntüleme yetkiniz yok.
+    </div>
+    <a href="{{ url_for('dilekce.create_dilekce_form') }}" class="btn btn-primary">Yeni Dilekçe Oluştur</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{# Placeholder for a rich text editor if you want to allow editing #}
+{# 
+<script src="https://cdn.ckeditor.com/ckeditor5/35.0.1/classic/ckeditor.js"></script>
+<script>
+    ClassicEditor
+        .create( document.querySelector( '#dilekceEditor' ) )
+        .then( editor => {
+            console.log( 'Editor was initialized', editor );
+            // You can make it readonly if it's just for viewing
+            // editor.isReadOnly = true; 
+        } )
+        .catch( error => {
+            console.error( error );
+        } );
+</script>
+#}
+{% endblock %}
